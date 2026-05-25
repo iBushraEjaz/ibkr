@@ -28,6 +28,7 @@ class Position(Base):
     current_price: Mapped[float] = mapped_column(Float, nullable=True)
     stop: Mapped[float] = mapped_column(Float, nullable=True)
     pnl: Mapped[float] = mapped_column(Float, nullable=True)
+    status: Mapped[str] = mapped_column(String, default="pending")  # pending | filled
 
 
 class BotRun(Base):

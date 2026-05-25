@@ -95,7 +95,7 @@ class ORBStrategy(Strategy):
 
         delay = max(0.0, (open_time - now).total_seconds())
         log.info(f"[{self.symbol}] Candle tracking starts in {delay:.0f}s")
-        asyncio.get_event_loop().call_later(
+        asyncio.get_running_loop().call_later(
             delay,
             lambda: asyncio.ensure_future(self._begin_candle_tracking()),
         )
@@ -124,12 +124,15 @@ class ORBStrategy(Strategy):
         self.c_high = -float("inf")
         self.c_low = float("inf")
 
+        delayed = self.cfg.get("delayed_data", False)
+        self.ib.reqMarketDataType(3 if delayed else 1)
         self.ticker_obj = self.ib.reqMktData(self.contract, "", False, False)
         self.ticker_obj.updateEvent += self.on_tick
-        log.info(f"[{self.symbol}] Tracking 9:30 candle via live ticks")
+        log.info(f"[{self.symbol}] Tracking 9:30 candle via {'delayed' if delayed else 'live'} ticks")
 
-        asyncio.get_event_loop().call_later(
-            61,
+        candle_secs = 10 if self.cfg.get("test_mode") else 61
+        asyncio.get_running_loop().call_later(
+            candle_secs,
             lambda: asyncio.ensure_future(self._finalize_opening_candle()),
         )
 
@@ -150,6 +153,12 @@ class ORBStrategy(Strategy):
 
         if self.ticker_obj:
             self.ticker_obj.updateEvent -= self.on_tick
+
+        if self.cfg.get("test_mode") and self.c_open is not None:
+            # force a valid range for testing
+            self.c_high = round(self.c_open * 1.005, 2)
+            self.c_low = round(self.c_open * 0.995, 2)
+            log.info(f"[{self.symbol}] TEST MODE — forcing candle H={self.c_high} L={self.c_low}")
 
         if self.c_open is None or self.c_high == -float("inf"):
             log.error(
@@ -201,7 +210,7 @@ class ORBStrategy(Strategy):
         self.entry_trade.filledEvent += self._on_entry_filled
         self._state = "order_placed"
 
-        self.cancel_handle = asyncio.get_event_loop().call_later(
+        self.cancel_handle = asyncio.get_running_loop().call_later(
             self.cfg["cancel_after_minutes"] * 60,
             lambda: asyncio.ensure_future(self._cancel_unfilled()),
         )
@@ -236,6 +245,8 @@ class ORBStrategy(Strategy):
         self.trail_window_low = float("inf")
         self.trail_window_start = None
 
+        delayed = self.cfg.get("delayed_data", False)
+        self.ib.reqMarketDataType(3 if delayed else 1)
         if self.ticker_obj:
             self.ticker_obj.updateEvent += self.on_tick
         else:

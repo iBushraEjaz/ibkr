@@ -12,6 +12,7 @@ export interface Position {
   current_price: number | null;
   stop: number | null;
   pnl: number | null;
+  status: "pending" | "filled";
 }
 
 export interface Trade {
@@ -115,16 +116,24 @@ export function useBot() {
   }, []);
 
   // ── actions ────────────────────────────────────────────────────
+  const [loading, setLoading] = useState(false);
+
   async function startBot() {
+    if (loading) return;
+    setLoading(true);
     await fetch(`${API}/bot/start`, { method: "POST" });
+    setLoading(false);
   }
 
   async function stopBot() {
+    if (loading) return;
+    setLoading(true);
     await fetch(`${API}/bot/stop`, { method: "POST" });
+    setLoading(false);
   }
 
   // ── derived ────────────────────────────────────────────────────
   const totalPnl = positions.reduce((sum, p) => sum + (p.pnl ?? 0), 0);
 
-  return { status, positions, trades, connected, totalPnl, startBot, stopBot };
+  return { status, positions, trades, connected, totalPnl, startBot, stopBot, loading };
 }

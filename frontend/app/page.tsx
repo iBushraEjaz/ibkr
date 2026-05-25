@@ -31,7 +31,7 @@ function useUptime(running: boolean) {
 // ── page ───────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { status, positions, trades, connected, totalPnl, startBot, stopBot } = useBot();
+  const { status, positions, trades, connected, totalPnl, startBot, stopBot, loading } = useBot();
   const uptime = useUptime(status === "running");
   const todayPnl = trades.reduce((s, t) => s + (t.pnl ?? 0), 0);
 
@@ -82,14 +82,14 @@ export default function Dashboard() {
             )}
             <button
               onClick={startBot}
-              disabled={status === "running"}
+              disabled={status === "running" || loading}
               className="text-xs font-semibold px-4 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-500 disabled:opacity-25 disabled:cursor-not-allowed transition-all"
             >
               Start Bot
             </button>
             <button
               onClick={stopBot}
-              disabled={status !== "running"}
+              disabled={status !== "running" || loading}
               className="text-xs font-semibold px-4 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-red-500/50 disabled:opacity-25 disabled:cursor-not-allowed transition-all"
             >
               Stop Bot
@@ -133,7 +133,7 @@ export default function Dashboard() {
               <Empty text="No open positions — bot is watching for setups" />
             ) : (
               <Table
-                headers={["Symbol", "Shares", "Entry Price", "Current Price", "Stop", "P&L"]}
+                headers={["Symbol", "Shares", "Entry Price", "Current Price", "Stop", "P&L", "Status"]}
                 rows={positions.map((p) => [
                   <Ticker key="t" symbol={p.symbol} />,
                   <Mono key="s">{p.shares}</Mono>,
@@ -141,6 +141,7 @@ export default function Dashboard() {
                   <Mono key="c">{fmt(p.current_price, "$")}</Mono>,
                   <Mono key="st" className="text-amber-400">{fmt(p.stop, "$")}</Mono>,
                   <Mono key="p" className={pnlClass(p.pnl)}>{fmt(p.pnl, "$")}</Mono>,
+                  <span key="status" className={`text-xs font-bold tracking-widest ${p.status === "filled" ? "text-emerald-400" : "text-amber-400"}`}>{p.status?.toUpperCase() ?? "PENDING"}</span>,
                 ])}
               />
             )}

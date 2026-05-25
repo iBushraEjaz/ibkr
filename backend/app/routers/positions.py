@@ -17,6 +17,7 @@ def get_positions(db: Session = Depends(get_db)):
             "current_price": p.current_price,
             "stop": p.stop,
             "pnl": p.pnl,
+            "status": p.status or "pending",
         }
         for p in positions
     ]
