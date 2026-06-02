@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const API = "http://localhost:8000";
-const WS_URL = "ws://localhost:8000/ws";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const WS_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/^http/, "ws") + "/ws";
 
 export interface Position {
   symbol: string;
