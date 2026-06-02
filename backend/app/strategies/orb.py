@@ -212,8 +212,9 @@ class ORBStrategy(Strategy):
 
         if self.cfg.get("test_mode") and self.c_open is not None:
             # set entry BELOW current price so order fills immediately in paper trading
-            self.c_high = round(self.c_open * 0.995, 2)  # entry below current = instant fill
-            self.c_low = round(self.c_open * 0.990, 2)
+            decimals = 4 if self.cfg.get("instrument") == "forex" else 2
+            self.c_high = round(self.c_open * 0.995, decimals)
+            self.c_low = round(self.c_open * 0.990, decimals)
             log.info(f"[{self.symbol}] TEST MODE — forcing candle H={self.c_high} L={self.c_low} (below market for instant fill)")
 
         if self.c_open is None or self.c_high == -float("inf"):
