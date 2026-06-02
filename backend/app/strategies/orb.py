@@ -4,7 +4,7 @@ import math
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from ib_insync import IB, Stock, StopOrder
+from ib_insync import IB, Stock, Forex, StopOrder
 
 from .base import Strategy
 
@@ -40,7 +40,10 @@ class ORBStrategy(Strategy):
         self.ib = ib
         self.symbol = symbol
         self.cfg = cfg
-        self.contract = Stock(symbol, "SMART", "USD")
+        if cfg.get("instrument") == "forex":
+            self.contract = Forex(symbol)  # e.g. Forex("EURUSD")
+        else:
+            self.contract = Stock(symbol, "SMART", "USD")
 
         self._state = "idle"
         self.entry_trade = None
@@ -81,7 +84,7 @@ class ORBStrategy(Strategy):
         now = datetime.now(ET)
 
         if self.cfg.get("test_mode"):
-            open_time = now + timedelta(minutes=2)
+            open_time = now + timedelta(seconds=7)
             log.info(f"[{self.symbol}] TEST MODE — candle tracking starts at {open_time.strftime('%H:%M:%S')} ET")
         else:
             open_time = now.replace(hour=9, minute=30, second=0, microsecond=0)
@@ -155,10 +158,10 @@ class ORBStrategy(Strategy):
             self.ticker_obj.updateEvent -= self.on_tick
 
         if self.cfg.get("test_mode") and self.c_open is not None:
-            # force a valid range for testing
-            self.c_high = round(self.c_open * 1.005, 2)
-            self.c_low = round(self.c_open * 0.995, 2)
-            log.info(f"[{self.symbol}] TEST MODE — forcing candle H={self.c_high} L={self.c_low}")
+            # set entry BELOW current price so order fills immediately in paper trading
+            self.c_high = round(self.c_open * 0.995, 2)  # entry below current = instant fill
+            self.c_low = round(self.c_open * 0.990, 2)
+            log.info(f"[{self.symbol}] TEST MODE — forcing candle H={self.c_high} L={self.c_low} (below market for instant fill)")
 
         if self.c_open is None or self.c_high == -float("inf"):
             log.error(
@@ -195,7 +198,11 @@ class ORBStrategy(Strategy):
 
         risk_amount = account_value * (self.cfg["risk_percent"] / 100)
         risk_per_share = entry_price - stop_price
-        self.shares = max(1, math.floor(risk_amount / risk_per_share))
+        shares = max(1, math.floor(risk_amount / risk_per_share))
+        max_size = self.cfg.get("max_position_size")
+        if max_size:
+            shares = min(shares, max_size)
+        self.shares = shares
         self.current_stop = stop_price
 
         log.info(

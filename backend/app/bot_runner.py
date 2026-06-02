@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -12,6 +13,11 @@ from .strategies.orb import ORBStrategy
 from .ws_manager import ws_manager
 from .database import SessionLocal
 from .models import Trade, Position, BotRun
+
+
+def _valid_price(p) -> bool:
+    import math
+    return p is not None and not math.isnan(p) and p > 0
 
 ET = ZoneInfo("America/New_York")
 logging.basicConfig(level=logging.DEBUG)
@@ -158,12 +164,33 @@ def _patch_strategy(strategy: ORBStrategy):
                              "pnl": None, "timestamp": datetime.utcnow().isoformat()})
         original_on_stop_filled()
 
+    _last_price_emit = {"t": 0.0}
+
     def on_tick_trail(ticker):
         old_stop = strategy.current_stop
         original_on_tick_trail(ticker)
+
+        # emit stop update if stop moved
         if strategy.current_stop != old_stop:
             _emit("stop_update", {"symbol": strategy.symbol,
                                   "old_stop": old_stop, "new_stop": strategy.current_stop})
+
+        # emit live price + P&L every 5 seconds
+        now = time.monotonic()
+        price = ticker.last if _valid_price(ticker.last) else ticker.bid
+        if price and _valid_price(price) and now - _last_price_emit["t"] >= 5:
+            _last_price_emit["t"] = now
+            entry = strategy.entry_trade.orderStatus.avgFillPrice if strategy.entry_trade else 0
+            pnl = round((price - entry) * strategy.shares, 2)
+            _upsert_position(strategy.symbol, strategy.shares, entry, price, strategy.current_stop)
+            _emit("position_update", {
+                "symbol": strategy.symbol,
+                "shares": strategy.shares,
+                "entry_price": entry,
+                "current_price": price,
+                "stop": strategy.current_stop,
+                "pnl": pnl,
+            })
 
     strategy._place_entry = place_entry
     strategy._on_entry_filled = on_entry_filled

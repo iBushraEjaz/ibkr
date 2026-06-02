@@ -133,7 +133,7 @@ export default function Dashboard() {
               <Empty text="No open positions — bot is watching for setups" />
             ) : (
               <Table
-                headers={["Symbol", "Shares", "Entry Price", "Current Price", "Stop", "P&L", "Status"]}
+                headers={["Symbol", "Shares", "Entry Price", "Current Price", "Stop", "P&L"]}
                 rows={positions.map((p) => [
                   <Ticker key="t" symbol={p.symbol} />,
                   <Mono key="s">{p.shares}</Mono>,
@@ -141,7 +141,6 @@ export default function Dashboard() {
                   <Mono key="c">{fmt(p.current_price, "$")}</Mono>,
                   <Mono key="st" className="text-amber-400">{fmt(p.stop, "$")}</Mono>,
                   <Mono key="p" className={pnlClass(p.pnl)}>{fmt(p.pnl, "$")}</Mono>,
-                  <span key="status" className={`text-xs font-bold tracking-widest ${p.status === "filled" ? "text-emerald-400" : "text-amber-400"}`}>{p.status?.toUpperCase() ?? "PENDING"}</span>,
                 ])}
               />
             )}
