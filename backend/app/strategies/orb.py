@@ -120,10 +120,19 @@ class ORBStrategy(Strategy):
         self._cancel_mktdata()
         if self.cancel_handle:
             self.cancel_handle.cancel()
+        try:
+            self.ib.pendingTickersEvent -= self._on_pending_tickers
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------ #
     # Opening candle                                                       #
     # ------------------------------------------------------------------ #
+
+    def _on_pending_tickers(self, tickers):
+        for t in tickers:
+            if t.contract == self.contract:
+                self.on_tick(t)
 
     async def _begin_candle_tracking(self):
         if self._state != "watching":
@@ -137,9 +146,10 @@ class ORBStrategy(Strategy):
         self.ib.reqMarketDataType(3 if delayed else 1)
         self.ticker_obj = self.ib.reqMktData(self.contract, "", False, False)
         self.ticker_obj.updateEvent += self.on_tick
-        log.info(f"[{self.symbol}] Tracking 9:30 candle via {'delayed' if delayed else 'live'} ticks")
+        self.ib.pendingTickersEvent += self._on_pending_tickers
+        log.info(f"[{self.symbol}] Tracking candle via {'delayed' if delayed else 'live'} ticks")
 
-        candle_secs = 10 if self.cfg.get("test_mode") else 61
+        candle_secs = 30 if self.cfg.get("test_mode") else 61
         asyncio.get_running_loop().call_later(
             candle_secs,
             lambda: asyncio.ensure_future(self._finalize_opening_candle()),
