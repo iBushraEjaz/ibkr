@@ -148,6 +148,10 @@ class ORBStrategy(Strategy):
     def _on_tick_candle(self, ticker):
         price = ticker.last
         if not _valid_price(price):
+            price = ticker.bid
+        if not _valid_price(price):
+            price = ticker.ask
+        if not _valid_price(price):
             return
         if self.c_open is None:
             self.c_open = price
