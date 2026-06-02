@@ -199,6 +199,8 @@ class ORBStrategy(Strategy):
             self.ib.pendingTickersEvent -= self._on_pending_tickers
         except Exception:
             pass
+        # re-subscribe for live price updates while order is pending
+        self.ib.pendingTickersEvent += self._on_pending_tickers
 
         # if no ticks received via event, read directly from ticker object
         if self.c_open is None and self.ticker_obj:
@@ -226,8 +228,9 @@ class ORBStrategy(Strategy):
             self._state = "done"
             return
 
-        candle_high = round(self.c_high, 2)
-        candle_low = round(self.c_low, 2)
+        decimals = 4 if self.cfg.get("instrument") == "forex" else 2
+        candle_high = round(self.c_high, decimals)
+        candle_low = round(self.c_low, decimals)
         log.info(f"[{self.symbol}] 9:30 candle | H={candle_high} L={candle_low}")
         await self._place_entry(candle_high, candle_low)
 
@@ -275,6 +278,18 @@ class ORBStrategy(Strategy):
             self.cfg["cancel_after_minutes"] * 60,
             lambda: asyncio.ensure_future(self._cancel_unfilled()),
         )
+
+        # start polling loop for live price updates while order pending
+        asyncio.ensure_future(self._poll_price_while_pending())
+
+    async def _poll_price_while_pending(self):
+        while self._state == "order_placed":
+            await asyncio.sleep(5)
+            if self.ticker_obj and self._state == "order_placed":
+                t = self.ticker_obj
+                price = t.bid if _valid_price(t.bid) else t.ask if _valid_price(t.ask) else t.last
+                if _valid_price(price):
+                    self._on_tick_candle(t)
 
     async def _cancel_unfilled(self):
         if self._state != "order_placed":
