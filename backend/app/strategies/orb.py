@@ -150,10 +150,29 @@ class ORBStrategy(Strategy):
         log.info(f"[{self.symbol}] Tracking candle via {'delayed' if delayed else 'live'} ticks")
 
         candle_secs = 30 if self.cfg.get("test_mode") else 61
-        asyncio.get_running_loop().call_later(
-            candle_secs,
-            lambda: asyncio.ensure_future(self._finalize_opening_candle()),
-        )
+
+        # poll ticker every second as fallback for forex
+        for _ in range(candle_secs):
+            await asyncio.sleep(1)
+            if self._state != "watching":
+                return
+            t = self.ticker_obj
+            price = None
+            if _valid_price(t.bid):
+                price = t.bid
+            elif _valid_price(t.ask):
+                price = t.ask
+            elif _valid_price(t.last):
+                price = t.last
+            if price:
+                if self.c_open is None:
+                    self.c_open = price
+                if price > self.c_high:
+                    self.c_high = price
+                if price < self.c_low:
+                    self.c_low = price
+
+        await self._finalize_opening_candle()
 
     def _on_tick_candle(self, ticker):
         price = ticker.last
