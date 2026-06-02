@@ -82,19 +82,23 @@ class ORBStrategy(Strategy):
 
         self._state = "watching"
         now = datetime.now(ET)
+        is_forex = self.cfg.get("instrument") == "forex"
 
         if self.cfg.get("test_mode"):
             open_time = now + timedelta(seconds=7)
             log.info(f"[{self.symbol}] TEST MODE — candle tracking starts at {open_time.strftime('%H:%M:%S')} ET")
+        elif is_forex:
+            open_time = now + timedelta(seconds=2)
+            log.info(f"[{self.symbol}] FOREX — starting immediately")
         else:
             open_time = now.replace(hour=9, minute=30, second=0, microsecond=0)
 
-        deadline = open_time + timedelta(minutes=self.cfg["cancel_after_minutes"])
-
-        if not self.cfg.get("test_mode") and now > deadline:
-            log.info(f"[{self.symbol}] Past cancel window — skipping today")
-            self._state = "done"
-            return
+        if not self.cfg.get("test_mode") and not is_forex:
+            deadline = open_time + timedelta(minutes=self.cfg["cancel_after_minutes"])
+            if now > deadline:
+                log.info(f"[{self.symbol}] Past cancel window — skipping today")
+                self._state = "done"
+                return
 
         delay = max(0.0, (open_time - now).total_seconds())
         log.info(f"[{self.symbol}] Candle tracking starts in {delay:.0f}s")
