@@ -27,11 +27,11 @@ log = logging.getLogger(__name__)
 # Global state                                                         #
 # ------------------------------------------------------------------ #
 
-_bot_thread: threading.Thread | None = None
-_bot_loop: asyncio.AbstractEventLoop | None = None
+_bot_thread = None
+_bot_loop = None
 _bot_status: str = "stopped"
-_current_run_id: int | None = None
-_fastapi_loop: asyncio.AbstractEventLoop | None = None  # set on first start
+_current_run_id = None
+_fastapi_loop = None  # set on first start
 
 
 def get_status() -> str:
