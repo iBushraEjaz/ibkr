@@ -5,9 +5,15 @@ import { useBot } from "@/hooks/useBot";
 
 // ── helpers ────────────────────────────────────────────────────────
 
-function fmt(n: number | null, prefix = "") {
+function fmt(n: number | null, prefix = "", decimals = 2) {
   if (n === null || n === undefined) return "—";
-  return `${prefix}${n.toFixed(2)}`;
+  return `${prefix}${n.toFixed(decimals)}`;
+}
+
+function fmtPrice(n: number | null, symbol: string) {
+  if (n === null || n === undefined) return "—";
+  const isForex = !["$"].includes(symbol) && symbol.length === 6;
+  return isForex ? n.toFixed(4) : `$${n.toFixed(2)}`;
 }
 
 function pnlClass(n: number | null) {
@@ -137,9 +143,9 @@ export default function Dashboard() {
                 rows={positions.map((p) => [
                   <Ticker key="t" symbol={p.symbol} />,
                   <Mono key="s">{p.shares}</Mono>,
-                  <Mono key="e">{fmt(p.entry_price, "$")}</Mono>,
-                  <Mono key="c">{fmt(p.current_price, "$")}</Mono>,
-                  <Mono key="st" className="text-amber-400">{fmt(p.stop, "$")}</Mono>,
+                  <Mono key="e">{fmtPrice(p.entry_price, p.symbol)}</Mono>,
+                  <Mono key="c">{fmtPrice(p.current_price, p.symbol)}</Mono>,
+                  <Mono key="st" className="text-amber-400">{fmtPrice(p.stop, p.symbol)}</Mono>,
                   <Mono key="p" className={pnlClass(p.pnl)}>{fmt(p.pnl, "$")}</Mono>,
                 ])}
               />

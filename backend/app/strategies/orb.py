@@ -111,6 +111,8 @@ class ORBStrategy(Strategy):
         """Dispatched by the bot loop — routes to the active tick handler."""
         if self._state == "watching":
             self._on_tick_candle(ticker)
+        elif self._state == "order_placed":
+            self._on_tick_candle(ticker)
         elif self._state == "in_position":
             self._on_tick_trail(ticker)
 

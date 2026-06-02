@@ -178,6 +178,8 @@ def _patch_strategy(strategy: ORBStrategy):
         # emit live price + P&L every 5 seconds
         now = time.monotonic()
         price = ticker.last if _valid_price(ticker.last) else ticker.bid
+        if not _valid_price(price):
+            price = ticker.ask
         if price and _valid_price(price) and now - _last_price_emit["t"] >= 5:
             _last_price_emit["t"] = now
             entry = strategy.entry_trade.orderStatus.avgFillPrice if strategy.entry_trade else 0
@@ -192,10 +194,31 @@ def _patch_strategy(strategy: ORBStrategy):
                 "pnl": pnl,
             })
 
+    def on_tick_candle(ticker):
+        """Emit price updates even while waiting for order fill."""
+        now = time.monotonic()
+        price = ticker.last if _valid_price(ticker.last) else ticker.bid
+        if not _valid_price(price):
+            price = ticker.ask
+        if price and _valid_price(price) and now - _last_price_emit["t"] >= 5:
+            _last_price_emit["t"] = now
+            entry = strategy.entry_trade.order.auxPrice if strategy.entry_trade else price
+            _upsert_position(strategy.symbol, strategy.shares, entry, price, strategy.current_stop or 0)
+            _emit("position_update", {
+                "symbol": strategy.symbol,
+                "shares": strategy.shares,
+                "entry_price": entry,
+                "current_price": price,
+                "stop": strategy.current_stop or 0,
+                "pnl": round((price - entry) * strategy.shares, 2),
+                "status": "pending",
+            })
+
     strategy._place_entry = place_entry
     strategy._on_entry_filled = on_entry_filled
     strategy._on_stop_filled = on_stop_filled
     strategy._on_tick_trail = on_tick_trail
+    strategy._on_tick_candle = on_tick_candle
 
 
 # ------------------------------------------------------------------ #
