@@ -176,6 +176,20 @@ class ORBStrategy(Strategy):
 
         if self.ticker_obj:
             self.ticker_obj.updateEvent -= self.on_tick
+        try:
+            self.ib.pendingTickersEvent -= self._on_pending_tickers
+        except Exception:
+            pass
+
+        # if no ticks received via event, read directly from ticker object
+        if self.c_open is None and self.ticker_obj:
+            t = self.ticker_obj
+            price = t.bid if _valid_price(t.bid) else t.ask if _valid_price(t.ask) else t.last
+            if _valid_price(price):
+                self.c_open = price
+                self.c_high = price
+                self.c_low = price
+                log.info(f"[{self.symbol}] Using snapshot price {price} for candle")
 
         if self.cfg.get("test_mode") and self.c_open is not None:
             # set entry BELOW current price so order fills immediately in paper trading
