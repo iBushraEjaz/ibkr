@@ -264,15 +264,17 @@ async def _run_bot():
         while True:
             await asyncio.sleep(30)
             now = datetime.now(ET)
-            if now.hour >= 16:
+            is_forex = cfg.get("instrument") == "forex"
+            if not is_forex and now.hour >= 16:
                 log.info("4:00 PM ET — shutting down")
                 break
-            active = [s for s in strategies if s.state not in ("done", "idle")]
-            if not active and all(s.state == "done" for s in strategies):
-                in_position = any(s.state == "in_position" for s in strategies)
-                if in_position or now.hour >= 9:
-                    log.info("All strategies resolved — shutting down")
-                    break
+            if not is_forex:
+                active = [s for s in strategies if s.state not in ("done", "idle")]
+                if not active and all(s.state == "done" for s in strategies):
+                    in_position = any(s.state == "in_position" for s in strategies)
+                    if in_position or now.hour >= 9:
+                        log.info("All strategies resolved — shutting down")
+                        break
 
     except asyncio.CancelledError:
         log.info("Bot stopped by user")
