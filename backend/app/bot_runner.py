@@ -289,14 +289,19 @@ async def _run_bot():
 
 
 def _thread_main():
-    global _bot_loop
+    global _bot_loop, _bot_status
     _bot_loop = asyncio.new_event_loop()
     asyncio.set_event_loop(_bot_loop)
     try:
         _bot_loop.run_until_complete(_run_bot())
+    except Exception as e:
+        log.error(f"Bot thread crashed: {e}")
+        _bot_status = "stopped"
     finally:
         _bot_loop.close()
         _bot_loop = None
+        if _bot_status == "error":
+            _bot_status = "stopped"
 
 
 # ------------------------------------------------------------------ #
